@@ -71,11 +71,109 @@ class JiraToMarkdown {
     return value.toString();
   }
 
+  // New method to parse Atlassian Document Format (ADF)
+  parseADFContent(content) {
+    if (!content) return '';
+    
+    if (typeof content === 'string') {
+      return this.convertJiraToMarkdown(content);
+    }
+    
+    if (Array.isArray(content)) {
+      return content.map(node => this.parseADFNode(node)).join('\n\n');
+    }
+    
+    if (content.content) {
+      return this.parseADFContent(content.content);
+    }
+    
+    return '';
+  }
+
+  parseADFNode(node) {
+    if (!node || !node.type) return '';
+    
+    let text = '';
+    
+    switch (node.type) {
+      case 'paragraph':
+        text = node.content ? node.content.map(child => this.parseADFNode(child)).join('') : '';
+        return text + '\n';
+        
+      case 'heading':
+        const level = node.attrs?.level || 1;
+        const headingText = node.content ? node.content.map(child => this.parseADFNode(child)).join('') : '';
+        return '#'.repeat(Math.min(level + 2, 6)) + ' ' + headingText + '\n';
+        
+      case 'bulletList':
+        return node.content ? node.content.map(child => this.parseADFNode(child)).join('') : '';
+        
+      case 'orderedList':
+        return node.content ? node.content.map((child, index) => {
+          const listItem = this.parseADFNode(child);
+          return listItem.replace(/^- /, `${index + 1}. `);
+        }).join('') : '';
+        
+      case 'listItem':
+        const itemText = node.content ? node.content.map(child => this.parseADFNode(child)).join('') : '';
+        return '- ' + itemText.trim() + '\n';
+        
+      case 'codeBlock':
+        const language = node.attrs?.language || '';
+        const codeText = node.content ? node.content.map(child => this.parseADFNode(child)).join('') : '';
+        return '```' + language + '\n' + codeText + '\n```\n';
+        
+      case 'blockquote':
+        const quoteText = node.content ? node.content.map(child => this.parseADFNode(child)).join('') : '';
+        return '> ' + quoteText.replace(/\n/g, '\n> ') + '\n';
+        
+      case 'text':
+        let textContent = node.text || '';
+        if (node.marks) {
+          node.marks.forEach(mark => {
+            switch (mark.type) {
+              case 'strong':
+                textContent = `**${textContent}**`;
+                break;
+              case 'em':
+                textContent = `*${textContent}*`;
+                break;
+              case 'code':
+                textContent = `\`${textContent}\``;
+                break;
+              case 'link':
+                const href = mark.attrs?.href || '#';
+                textContent = `[${textContent}](${href})`;
+                break;
+            }
+          });
+        }
+        return textContent;
+        
+      case 'hardBreak':
+        return '\n';
+        
+      case 'rule':
+        return '---\n';
+        
+      default:
+        // For unknown node types, try to extract text content
+        if (node.content) {
+          return node.content.map(child => this.parseADFNode(child)).join('');
+        }
+        if (node.text) {
+          return node.text;
+        }
+        return '';
+    }
+  }
+
   convertJiraToMarkdown(content) {
     if (!content) return '';
     
-    // Convert Jira markup to Markdown
+    // Handle legacy Jira markup (Wiki markup)
     return content
+      .replace(/h([1-6])\.\s*(.+)/g, (match, level, text) => '#'.repeat(parseInt(level)) + ' ' + text)
       .replace(/\*([^*]+)\*/g, '**$1**')  // Bold
       .replace(/_([^_]+)_/g, '*$1*')      // Italic
       .replace(/\+([^+]+)\+/g, '`$1`')    // Code
@@ -84,7 +182,9 @@ class JiraToMarkdown {
       .replace(/\{code(?::([^}]*))?\}(.*?)\{code\}/gs, '```$1\n$2\n```') // Code blocks
       .replace(/\{quote\}(.*?)\{quote\}/gs, '> $1') // Quotes
       .replace(/\[([^\]]+)\|([^\]]+)\]/g, '[$1]($2)') // Links
-      .replace(/!([^!]+)!/g, '![]($1)');  // Images
+      .replace(/!([^!]+)!/g, '![]($1)')  // Images
+      .replace(/^\* /gm, '- ')           // Bullet lists
+      .replace(/^# /gm, '1. ');          // Numbered lists
   }
 
   async generateMarkdown(ticket, comments, attachments) {
@@ -114,23 +214,39 @@ class JiraToMarkdown {
     
     markdown += `\n`;
 
-    // Description
+    // Description with improved ADF parsing
     if (fields.description) {
       markdown += `## Description\n\n`;
-      markdown += `${this.convertJiraToMarkdown(fields.description.content ? 
-        fields.description.content.map(c => c.content?.map(cc => cc.text).join('') || '').join('\n') : 
-        fields.description)}\n\n`;
+      
+      // Try to parse as ADF first, fallback to legacy markup
+      let descriptionText = '';
+      if (fields.description.content) {
+        // Modern ADF format
+        descriptionText = this.parseADFContent(fields.description.content);
+      } else if (typeof fields.description === 'string') {
+        // Legacy wiki markup
+        descriptionText = this.convertJiraToMarkdown(fields.description);
+      } else if (fields.description.text) {
+        // Plain text
+        descriptionText = fields.description.text;
+      }
+      
+      markdown += `${descriptionText}\n\n`;
     }
 
-    // Custom fields
+    // Custom fields (filter out empty/meaningless ones)
     const customFields = Object.entries(fields).filter(([key, value]) => 
-      key.startsWith('customfield_') && value !== null
+      key.startsWith('customfield_') && value !== null && value !== '' && 
+      !key.includes('rank') && !key.includes('10019') // Skip rank fields and meaningless ones
     );
     
     if (customFields.length > 0) {
       markdown += `## Custom Fields\n\n`;
       customFields.forEach(([key, value]) => {
-        markdown += `- **${key}**: ${this.formatField(value)}\n`;
+        const formattedValue = this.formatField(value);
+        if (formattedValue !== 'N/A' && formattedValue.trim() !== '') {
+          markdown += `- **${key}**: ${formattedValue}\n`;
+        }
       });
       markdown += `\n`;
     }
@@ -145,15 +261,21 @@ class JiraToMarkdown {
       markdown += `\n`;
     }
 
-    // Comments
+    // Comments with improved parsing
     if (comments && comments.length > 0) {
       markdown += `## Comments\n\n`;
       comments.forEach((comment, index) => {
         const author = comment.author?.displayName || 'Unknown';
         const created = new Date(comment.created).toLocaleString();
-        const body = this.convertJiraToMarkdown(comment.body?.content ?
-          comment.body.content.map(c => c.content?.map(cc => cc.text).join('') || '').join('\n') :
-          comment.body || '');
+        
+        let body = '';
+        if (comment.body?.content) {
+          body = this.parseADFContent(comment.body.content);
+        } else if (typeof comment.body === 'string') {
+          body = this.convertJiraToMarkdown(comment.body);
+        } else if (comment.body?.text) {
+          body = comment.body.text;
+        }
         
         markdown += `### Comment ${index + 1}\n`;
         markdown += `**Author**: ${author}  \n`;
