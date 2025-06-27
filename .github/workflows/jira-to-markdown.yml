@@ -28,6 +28,9 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        token: ${{ secrets.GITHUB_TOKEN }}
       
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -290,11 +293,17 @@ jobs:
         
         # Check if there are any changes to commit
         if [ -n "$(git status --porcelain)" ]; then
-          # Pull latest changes first to avoid conflicts
-          git pull --rebase --autostash
+          echo "📝 Changes detected, preparing to commit..."
+          
+          # Pull latest changes first
+          git pull origin main --rebase || git pull origin main
+          
+          # Stage and commit changes
           git add .
           git commit -m "Add Jira ticket ${{ github.event.inputs.jira_ticket }} as Markdown"
-          git push
+          
+          # Push changes
+          git push origin main
           echo "✅ Changes committed and pushed successfully"
         else
           echo "ℹ️ No changes to commit"
