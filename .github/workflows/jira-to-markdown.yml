@@ -292,7 +292,7 @@ jobs:
         if [ -n "$(git status --porcelain)" ]; then
           git add .
           git commit -m "Add Jira ticket ${{ github.event.inputs.jira_ticket }} as Markdown"
-          git pull --rebase
+          git pull --rebase --autostash
           git push
           echo "✅ Changes committed and pushed successfully"
         else
