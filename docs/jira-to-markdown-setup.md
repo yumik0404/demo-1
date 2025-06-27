@@ -148,6 +148,91 @@ const filteredComments = comments.filter(comment =>
 - Verify file sizes aren't too large
 - Ensure sufficient GitHub Actions storage
 
+## ✅ How to Verify Workflow Success
+
+### 1. Monitor Workflow Execution
+
+**In GitHub Actions Tab:**
+1. Go to **Actions** → **"Jira to Markdown Converter"**
+2. Click on your workflow run
+3. Watch the real-time progress with status indicators:
+   - 🟡 **Yellow circle**: Running
+   - ✅ **Green checkmark**: Success
+   - ❌ **Red X**: Failed
+   - ⏸️ **Gray circle**: Pending/Queued
+
+### 2. Check Workflow Logs
+
+**Real-time Logging:**
+- Click **any step** to see detailed logs
+- Look for these success messages:
+  ```
+  ✅ Successfully converted PROJ-123 to docs/tickets/PROJ-123/PROJ-123.md
+  📁 Attachments saved to: docs/tickets/PROJ-123/attachments
+  ```
+
+**Error Indicators:**
+- Red ❌ steps indicate failures
+- Check error messages for troubleshooting
+
+### 3. Verify Generated Files
+
+**Successful runs create:**
+- 📄 **New markdown file**: `docs/tickets/TICKET-KEY/TICKET-KEY.md`
+- 📁 **Attachments folder**: `docs/tickets/TICKET-KEY/attachments/`
+- 🔄 **New commit** with message: `"Add Jira ticket TICKET-KEY as Markdown"`
+
+**Check in Repository:**
+1. Go to **Code** tab
+2. Navigate to `docs/tickets/`
+3. Look for your ticket folder
+4. Verify markdown file and attachments exist
+
+### 4. Review Workflow Summary
+
+**GitHub provides a summary with:**
+- ✅ **Status**: Successfully converted
+- 📊 **Execution time**
+- 📁 **Files created**
+- 🔗 **Direct links** to generated content
+
+### 5. Email Notifications (if enabled)
+
+GitHub sends email notifications for:
+- ✅ **Successful runs**
+- ❌ **Failed runs**
+- ⏸️ **Cancelled runs**
+
+### 6. Check Repository Changes
+
+**After successful run:**
+```bash
+# Pull latest changes to see new files
+git pull origin main
+
+# List created files
+ls -la docs/tickets/TICKET-KEY/
+```
+
+### 7. Common Success Indicators
+
+**Workflow completed successfully if you see:**
+- All steps have ✅ green checkmarks
+- Log shows "Successfully converted [TICKET-KEY]"
+- New commit appears in repository
+- Markdown file exists and contains ticket data
+- Attachments downloaded (if any existed)
+
+### 8. Quick Success Test
+
+**Verify the markdown file contains:**
+- Ticket title and summary
+- Properly formatted table with ticket info
+- Description with converted Jira markup
+- Comments section (if comments existed)
+- Attachment links (if attachments existed)
+- Metadata footer with generation timestamp
+
 ### Debug Mode
 
 Add this step to enable debug logging:
@@ -156,6 +241,44 @@ Add this step to enable debug logging:
 - name: Enable Debug
   run: echo "ACTIONS_STEP_DEBUG=true" >> $GITHUB_ENV
 ```
+
+### Failed Workflow Indicators
+
+**🚨 Workflow failed if you see:**
+- Red ❌ on any step
+- Error messages in logs like:
+  ```
+  ❌ Error: Authentication failed
+  ❌ Error: Issue not found
+  ❌ Error: Permission denied
+  ```
+- No new files created in repository
+- No new commit generated
+
+**Common Error Messages & Solutions:**
+
+| Error Message | Cause | Solution |
+|---------------|-------|----------|
+| `Authentication failed` | Wrong credentials | Check GitHub secrets |
+| `Issue not found` | Invalid ticket key | Verify ticket exists |
+| `Permission denied` | Insufficient Jira permissions | Request admin access |
+| `Cannot find module` | Missing dependencies | Workflow will auto-install |
+| `Network timeout` | Jira server unreachable | Check JIRA_BASE_URL |
+| `Exit code 128` | Git operation failed | Check repository permissions |
+| `set-output deprecated` | Old GitHub Actions syntax | Fixed in latest version |
+
+**Debugging Steps:**
+1. **Check GitHub Secrets** are properly set
+2. **Verify Jira ticket exists** and is accessible
+3. **Test API access** manually with curl
+4. **Enable debug mode** for detailed logging
+5. **Check Jira permissions** for your account
+6. **Verify repository write permissions** for GitHub Actions
+
+**Git-related Issues (Exit Code 128):**
+- Ensure GitHub Actions has write permissions to the repository
+- Check if branch protection rules block automated commits
+- Verify the repository isn't archived or read-only
 
 ## 📊 Workflow Outputs
 

@@ -256,9 +256,13 @@ jobs:
               console.log(`✅ Successfully converted ${this.ticketKey} to ${markdownPath}`);
               console.log(`📁 Attachments saved to: ${attachmentsDir}`);
               
-              // Output for GitHub Actions
-              console.log(`::set-output name=markdown_path::${markdownPath}`);
-              console.log(`::set-output name=attachments_dir::${attachmentsDir}`);
+              // Output for GitHub Actions using Environment Files
+              const fs = require('fs');
+              const outputFile = process.env.GITHUB_OUTPUT;
+              if (outputFile) {
+                fs.appendFileSync(outputFile, `markdown_path=${markdownPath}\n`);
+                fs.appendFileSync(outputFile, `attachments_dir=${attachmentsDir}\n`);
+              }
               
             } catch (error) {
               console.error('❌ Error:', error.message);
@@ -280,9 +284,16 @@ jobs:
       run: |
         git config --local user.email "action@github.com"
         git config --local user.name "GitHub Action"
-        git add .
-        git commit -m "Add Jira ticket ${{ github.event.inputs.jira_ticket }} as Markdown" || exit 0
-        git push
+        
+        # Check if there are any changes to commit
+        if [ -n "$(git status --porcelain)" ]; then
+          git add .
+          git commit -m "Add Jira ticket ${{ github.event.inputs.jira_ticket }} as Markdown"
+          git push
+          echo "✅ Changes committed and pushed successfully"
+        else
+          echo "ℹ️ No changes to commit"
+        fi
         
     - name: Create summary
       run: |
