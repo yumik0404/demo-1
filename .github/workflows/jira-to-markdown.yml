@@ -263,7 +263,6 @@ jobs:
               console.log(`📁 Attachments saved to: ${attachmentsDir}`);
               
               // Output for GitHub Actions using Environment Files
-              const fs = require('fs');
               const outputFile = process.env.GITHUB_OUTPUT;
               if (outputFile) {
                 fs.appendFileSync(outputFile, `markdown_path=${markdownPath}\n`);
