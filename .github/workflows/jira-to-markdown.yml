@@ -290,9 +290,10 @@ jobs:
         
         # Check if there are any changes to commit
         if [ -n "$(git status --porcelain)" ]; then
+          # Pull latest changes first to avoid conflicts
+          git pull --rebase --autostash
           git add .
           git commit -m "Add Jira ticket ${{ github.event.inputs.jira_ticket }} as Markdown"
-          git pull --rebase --autostash
           git push
           echo "✅ Changes committed and pushed successfully"
         else
