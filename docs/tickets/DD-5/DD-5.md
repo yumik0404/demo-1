@@ -16,7 +16,7 @@
 ## Description
 
 **Title:**
-🧱 Create homepage structure for Yumi Kim’s personal website
+Create homepage structure for Yumi Kim’s personal website
 
 
 **Description:**
@@ -26,7 +26,7 @@ Build the foundational structure of Yumi Kim’s personal homepage using React. 
 **Requirements:**
 
 
-- Use React (TypeScript optional) with functional components
+- Use React with functional components
 - Include the following sections with placeholder or real content:
 - Full-screen hero section with Yumi’s name and a short tagline
 - About Me section with a short paragraph and avatar/profile image
