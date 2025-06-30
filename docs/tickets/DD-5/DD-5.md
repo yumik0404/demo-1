@@ -13,7 +13,6 @@
 | **Created** | 6/27/2025, 7:44:10 PM |
 | **Updated** | 6/27/2025, 7:46:27 PM |
 
-## Description
 
 **Title:**
 Create homepage structure for Yumi Kim’s personal website
